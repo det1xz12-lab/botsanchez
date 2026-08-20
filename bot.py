@@ -1,4 +1,5 @@
 import os
+import sys
 import discord
 from discord import app_commands
 from discord.ext import commands
@@ -21,8 +22,19 @@ HIGH_ROLES = {
     "IA": 1539717130801651883,  # ID роли 🛡️ 𝐇𝐈𝐆𝐇 𝐈𝐀
 }
 
-# Безопасное чтение токена из настроек сервера/Render
+# ==========================================
+# 🔐 ПРОВЕРКА ТОКЕНА
+# ==========================================
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
+
+if not BOT_TOKEN:
+    print("\n" + "="*60)
+    print("❌ КРИТИЧЕСКАЯ ОШИБКА: Переменная BOT_TOKEN не найдена!")
+    print("Зайди в Render -> Environment -> Add Environment Variable")
+    print("Key: BOT_TOKEN")
+    print("Value: [твой токен бота]")
+    print("="*60 + "\n")
+    sys.exit(1)
 
 # Инициализация бота
 intents = discord.Intents.default()
