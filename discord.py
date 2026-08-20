@@ -1,16 +1,17 @@
+import os
 import discord
 from discord import app_commands
 from discord.ext import commands
 
 # ==========================================
-# ⚙️ НАСТРОЙКИ КАНАЛОВ И РОЛЕЙ (Вставь свои ID)
+# ⚙️ НАСТРОЙКИ КАНАЛОВ И РОЛЕЙ
 # ==========================================
 APPLY_CHANNEL_ID = 1539713687407960084    # Канал заявок на вступление
 REPORT_CHANNEL_ID = 1539715610684948480   # Канал отчетов на повышение
 TRANSFER_CHANNEL_ID = 1539887484803092591 # Канал переводов
 
 GUEST_ROLE_ID = 1539659128383864872       # Роль [00] GUEST
-RECRUIT_ROLE_ID = 1539633481825652857 1539652840618721300     # Роль [01] RECRUIT
+RECRUIT_ROLE_ID = 1539652840618721300     # Роль [01] RECRUIT
 
 # ID ролей Хай-состава для пинга при переводах
 HIGH_ROLES = {
@@ -20,9 +21,10 @@ HIGH_ROLES = {
     "IA": 1539717130801651883,  # ID роли 🛡️ 𝐇𝐈𝐆𝐇 𝐈𝐀
 }
 
-BOT_TOKEN = "MTUzOTcxMjI3MzY4ODMwNTc1NQ.GG84-v.foAobdXSk6XNDx8bt5K2cEzEOau7sMva9QXCTw"
+# Безопасное чтение токена из настроек сервера/Render
+BOT_TOKEN = os.environ.get("BOT_TOKEN")
 
-# Инициализация
+# Инициализация бота
 intents = discord.Intents.default()
 intents.members = True
 intents.message_content = True
