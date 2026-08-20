@@ -3,26 +3,25 @@ import sys
 import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import discord
-from discord import app_commands
 from discord.ext import commands
 
 # ==========================================
-# 🌐 ФЕЙКОВЫЙ ВЕБ-СЕРВЕР ДЛЯ RENDER
+# 🌐 ВЕБ-СЕРВЕР ДЛЯ ОБХОДА ОГРАНИЧЕНИЙ RENDER
 # ==========================================
 class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
         self.end_headers()
-        self.wfile.write(b"Bot is alive!")
+        self.wfile.write(b"Bot is active!")
 
 def run_web_server():
-    port = int(os.environ.get("PORT", 8080))
+    port = int(os.environ.get("PORT", 10000))
     server = HTTPServer(("0.0.0.0", port), SimpleHTTPRequestHandler)
+    print(f"🌐 Веб-сервер запущен на порту {port}")
     server.serve_forever()
 
-# Запускаем веб-сервер в отдельном потоке
+# Запуск сервера в отдельном потоке
 threading.Thread(target=run_web_server, daemon=True).start()
-
 
 # ==========================================
 # ⚙️ НАСТРОЙКИ КАНАЛОВ И РОЛЕЙ
@@ -44,7 +43,7 @@ HIGH_ROLES = {
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 
 if not BOT_TOKEN:
-    print("\n❌ КРИТИЧЕСКАЯ ОШИБКА: Переменная BOT_TOKEN не найдена!\n")
+    print("\n❌ ОШИБКА: Токен BOT_TOKEN не найден в переменной окружения!\n")
     sys.exit(1)
 
 intents = discord.Intents.default()
@@ -53,13 +52,11 @@ intents.message_content = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-
 async def send_dm(user: discord.User | discord.Member, message: str):
     try:
         await user.send(message)
     except discord.Forbidden:
         pass
-
 
 # ==========================================
 # 1. 📝 ЗАЯВКА НА ВСТУПЛЕНИЕ (/apply)
@@ -127,9 +124,8 @@ class ApplyButtons(discord.ui.View):
         await interaction.message.edit(content=f"❌ **Отклонил: {interaction.user.mention}**", view=self)
         await interaction.response.send_message("Заявка отклонена.", ephemeral=True)
 
-
 # ==========================================
-# 2. 📈 ОБНОВЛЕННЫЙ ОТЧЕТ НА ПОВЫШЕНИЕ (/report)
+# 2. 📈 ОТЧЕТ НА ПОВЫШЕНИЕ (/report)
 # ==========================================
 class ReportModal(discord.ui.Modal, title="Отчет на повышение"):
     rank_info = discord.ui.TextInput(label="С какого на какой ранг", placeholder="Например: С [05] на [06]")
@@ -181,7 +177,6 @@ class ReportButtons(discord.ui.View):
             item.disabled = True
         await interaction.message.edit(content=f"❌ **Отклонил: {interaction.user.mention}**", view=self)
         await interaction.response.send_message("Отчет отклонен.", ephemeral=True)
-
 
 # ==========================================
 # 3. 🔄 ЗАЯВКА НА ПЕРЕВОД В ОТДЕЛ (/transfer)
@@ -250,7 +245,6 @@ class TransferButtons(discord.ui.View):
             item.disabled = True
         await interaction.message.edit(content=f"❌ **Перевод отклонил: {interaction.user.mention}**", view=self)
         await interaction.response.send_message("Перевод отклонен.", ephemeral=True)
-
 
 # ==========================================
 # 🛠️ СЛЭШ-КОМАНДЫ
