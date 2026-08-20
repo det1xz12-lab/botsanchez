@@ -1,8 +1,28 @@
 import os
 import sys
+import threading
+from http.server import HTTPServer, BaseHTTPRequestHandler
 import discord
 from discord import app_commands
 from discord.ext import commands
+
+# ==========================================
+# 🌐 ФЕЙКОВЫЙ ВЕБ-СЕРВЕР ДЛЯ RENDER
+# ==========================================
+class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"Bot is alive!")
+
+def run_web_server():
+    port = int(os.environ.get("PORT", 8080))
+    server = HTTPServer(("0.0.0.0", port), SimpleHTTPRequestHandler)
+    server.serve_forever()
+
+# Запускаем веб-сервер в отдельном потоке
+threading.Thread(target=run_web_server, daemon=True).start()
+
 
 # ==========================================
 # ⚙️ НАСТРОЙКИ КАНАЛОВ И РОЛЕЙ
@@ -12,31 +32,21 @@ REPORT_CHANNEL_ID = 1539715610684948480   # Канал отчетов на по�
 TRANSFER_CHANNEL_ID = 1539887484803092591 # Канал переводов
 
 GUEST_ROLE_ID = 1539659128383864872       # Роль [00] GUEST
-RECRUIT_ROLE_ID = 1539633481825652857     # Роль [01] RECRUIT
+RECRUIT_ROLE_ID = 1539652840618721300     # Роль [01] RECRUIT
 
-# ID ролей Хай-состава для пинга при переводах
 HIGH_ROLES = {
-    "SD": 1539716906762764329,  # ID роли ⚖️ 𝐇𝐈𝐆𝐇 𝐒𝐃
-    "ED": 1539717070047154226,  # ID роли 💼 𝐇𝐈𝐆𝐇 𝐄𝐃
-    "RD": 1539717064351154317,  # ID роли 🤝 𝐇𝐈𝐆𝐇 𝐑𝐃
-    "IA": 1539717130801651883,  # ID роли 🛡️ 𝐇𝐈𝐆𝐇 𝐈𝐀
+    "SD": 1539716906762764329,
+    "ED": 1539717070047154226,
+    "RD": 1539717064351154317,
+    "IA": 1539717130801651883,
 }
 
-# ==========================================
-# 🔐 ПРОВЕРКА ТОКЕНА
-# ==========================================
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 
 if not BOT_TOKEN:
-    print("\n" + "="*60)
-    print("❌ КРИТИЧЕСКАЯ ОШИБКА: Переменная BOT_TOKEN не найдена!")
-    print("Зайди в Render -> Environment -> Add Environment Variable")
-    print("Key: BOT_TOKEN")
-    print("Value: [твой токен бота]")
-    print("="*60 + "\n")
+    print("\n❌ КРИТИЧЕСКАЯ ОШИБКА: Переменная BOT_TOKEN не найдена!\n")
     sys.exit(1)
 
-# Инициализация бота
 intents = discord.Intents.default()
 intents.members = True
 intents.message_content = True
@@ -76,7 +86,7 @@ class ApplyModal(discord.ui.Modal, title="Заявка в семью SANCHEZ"):
 
         view = ApplyButtons(applicant_id=interaction.user.id)
         await channel.send(embed=embed, view=view)
-        await send_dm(interaction.user, "📥 **Ваша заявка на вступление в семью SANCHEZ успешно отправлена!** Ожидайте ответа от вербовщиков.")
+        await send_dm(interaction.user, "📥 **Ваша заявка на вступление в семью SANCHEZ успешно отправлена!**")
         await interaction.response.send_message("✅ Заявка отправлена!", ephemeral=True)
 
 
@@ -99,7 +109,7 @@ class ApplyButtons(discord.ui.View):
             if recruit_role:
                 await member.add_roles(recruit_role)
 
-            await send_dm(member, "🎉 **Ваша заявка на вступление в семью SANCHEZ одобрена!** Роль выдана, ждем вас в игре.")
+            await send_dm(member, "🎉 **Ваша заявка на вступление в семью SANCHEZ одобрена!** Роль выдана.")
 
         for item in self.children:
             item.disabled = True
@@ -119,22 +129,24 @@ class ApplyButtons(discord.ui.View):
 
 
 # ==========================================
-# 2. 📈 ЗАЯВКА НА ПОВЫШЕНИЕ (/report)
+# 2. 📈 ОБНОВЛЕННЫЙ ОТЧЕТ НА ПОВЫШЕНИЕ (/report)
 # ==========================================
 class ReportModal(discord.ui.Modal, title="Отчет на повышение"):
-    rank_from_to = discord.ui.TextInput(label="С какого на какой ранг", placeholder="С [01] на [02]")
-    proofs = discord.ui.TextInput(label="Ссылки на работу", style=discord.TextStyle.paragraph)
+    rank_info = discord.ui.TextInput(label="С какого на какой ранг", placeholder="Например: С [05] на [06]")
+    work_done = discord.ui.TextInput(label="Что было проделано? (Баллы)", style=discord.TextStyle.paragraph, placeholder="Сдал устав, побывал на 2 МП (20 баллов)...")
+    proofs = discord.ui.TextInput(label="Ссылки на доказательства (Imgur/YouTube)", style=discord.TextStyle.paragraph)
 
     async def on_submit(self, interaction: discord.Interaction):
         channel = interaction.guild.get_channel(REPORT_CHANNEL_ID)
         if not channel:
-            await interaction.response.send_message("❌ Канал не найден!", ephemeral=True)
+            await interaction.response.send_message("❌ Канал отчетов не найден!", ephemeral=True)
             return
 
         embed = discord.Embed(title="📈 Новый отчет на повышение", color=discord.Color.green())
         embed.set_thumbnail(url=interaction.user.display_avatar.url)
         embed.add_field(name="Сотрудник", value=interaction.user.mention, inline=True)
-        embed.add_field(name="Прогресс", value=self.rank_from_to.value, inline=True)
+        embed.add_field(name="Повышение", value=self.rank_info.value, inline=True)
+        embed.add_field(name="Проделанная работа", value=self.work_done.value, inline=False)
         embed.add_field(name="Доказательства", value=self.proofs.value, inline=False)
 
         view = ReportButtons(applicant_id=interaction.user.id)
@@ -163,7 +175,7 @@ class ReportButtons(discord.ui.View):
     async def reject(self, interaction: discord.Interaction, button: discord.ui.Button):
         member = interaction.guild.get_member(self.applicant_id)
         if member:
-            await send_dm(member, "🔴 **Ваш отчет на повышение был отклонен.** Обратитесь к руководству за деталями.")
+            await send_dm(member, "🔴 **Ваш отчет на повышение был отклонен.** Обратитесь к руководству.")
 
         for item in self.children:
             item.disabled = True
@@ -175,25 +187,10 @@ class ReportButtons(discord.ui.View):
 # 3. 🔄 ЗАЯВКА НА ПЕРЕВОД В ОТДЕЛ (/transfer)
 # ==========================================
 class TransferModal(discord.ui.Modal, title="Заявка на перевод в отдел"):
-    current_dept = discord.ui.TextInput(
-        label="Откуда перевод (SD / ED / RD / IA)",
-        placeholder="Например: SD",
-        max_length=5,
-    )
-    target_dept = discord.ui.TextInput(
-        label="Куда перевод (SD / ED / RD / IA)",
-        placeholder="Например: ED",
-        max_length=5,
-    )
-    rank_info = discord.ui.TextInput(
-        label="Ваш текущий ранг / Static ID",
-        placeholder="[05] Junior Member | ID 1024",
-    )
-    reason = discord.ui.TextInput(
-        label="Причина перевода",
-        style=discord.TextStyle.paragraph,
-        placeholder="Опишите причину перевода...",
-    )
+    current_dept = discord.ui.TextInput(label="Откуда перевод (SD / ED / RD / IA)", placeholder="SD", max_length=5)
+    target_dept = discord.ui.TextInput(label="Куда перевод (SD / ED / RD / IA)", placeholder="ED", max_length=5)
+    rank_info = discord.ui.TextInput(label="Ваш текущий ранг / Static ID", placeholder="[05] Junior Member | ID 1024")
+    reason = discord.ui.TextInput(label="Причина перевода", style=discord.TextStyle.paragraph)
 
     async def on_submit(self, interaction: discord.Interaction):
         channel = interaction.guild.get_channel(TRANSFER_CHANNEL_ID)
@@ -210,30 +207,20 @@ class TransferModal(discord.ui.Modal, title="Заявка на перевод в
         from_ping = f"<@&{from_role_id}>" if from_role_id else f"`{from_tag}`"
         to_ping = f"<@&{to_role_id}>" if to_role_id else f"`{to_tag}`"
 
-        ping_content = (
-            f"🔔 **ВНИМАНИЕ ХАЙ-СОСТАВ!** {from_ping} ➔ {to_ping}\n"
-            f"Заявка на перевод от {interaction.user.mention}!"
-        )
+        ping_content = f"🔔 **ВНИМАНИЕ ХАЙ-СОСТАВ!** {from_ping} ➔ {to_ping}\nЗаявка от {interaction.user.mention}!"
 
-        embed = discord.Embed(
-            title="🔄 Заявка на перевод в другой отдел",
-            color=discord.Color.gold(),
-        )
+        embed = discord.Embed(title="🔄 Заявка на перевод в другой отдел", color=discord.Color.gold())
         embed.set_thumbnail(url=interaction.user.display_avatar.url)
         embed.add_field(name="Сотрудник", value=interaction.user.mention, inline=True)
         embed.add_field(name="Ранг | Static ID", value=self.rank_info.value, inline=True)
-        embed.add_field(name="Откуда перевод", value=f"**{from_tag}**", inline=True)
-        embed.add_field(name="Куда перевод", value=f"**{to_tag}**", inline=True)
+        embed.add_field(name="Маршрут", value=f"**{from_tag}** ➔ **{to_tag}**", inline=True)
         embed.add_field(name="Причина перевода", value=self.reason.value, inline=False)
 
         view = TransferButtons(applicant_id=interaction.user.id, target_dept=to_tag)
 
         await channel.send(content=ping_content, embed=embed, view=view)
-        await send_dm(
-            interaction.user,
-            f"📥 **Ваша заявка на перевод из `{from_tag}` в `{to_tag}` отправлена!** Руководство обоих отделов уведомлено.",
-        )
-        await interaction.response.send_message("✅ Заявка на перевод успешно отправлена!", ephemeral=True)
+        await send_dm(interaction.user, f"📥 **Ваша заявка на перевод из `{from_tag}` в `{to_tag}` отправлена!**")
+        await interaction.response.send_message("✅ Заявка отправлена!", ephemeral=True)
 
 
 class TransferButtons(discord.ui.View):
@@ -280,13 +267,12 @@ async def report(interaction: discord.Interaction):
 async def transfer(interaction: discord.Interaction):
     await interaction.response.send_modal(TransferModal())
 
-
 # ==========================================
 # 🚀 ЗАПУСК
 # ==========================================
 @bot.event
 async def on_ready():
     await bot.tree.sync()
-    print(f"✅ Бот {bot.user.name} успешно запущен со всеми 3 системами!")
+    print(f"✅ Бот {bot.user.name} запущен и готов к работе!")
 
 bot.run(BOT_TOKEN)
